@@ -117,7 +117,7 @@ func (con *Converter) WriteIdent(rootExpr *exprpb.Expr, path []string) error {
 		path = con.identTracker.AddIdentAccess(rootExpr, path)
 	}
 	for i, p := range path {
-		if i != 0 {
+		if i != 0 || rootExpr != nil {
 			con.str.WriteString(".")
 		}
 		con.str.WriteString("`")
