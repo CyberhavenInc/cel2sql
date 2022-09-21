@@ -22,6 +22,8 @@ const (
 	ExistsContainsCI = "existsContainsCI"
 	ExistsRegexp     = "existsRegexp"   // REGEXP_CONTAINS, not anchored.
 	ExistsRegexpCI   = "existsRegexpCI" // REGEXP_CONTAINS, not anchored.
+
+	ContainsText = "containsText"
 )
 
 var ciFuncs = map[string]struct{}{
@@ -93,13 +95,18 @@ var Declarations = cel.Declarations(
 		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
 		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
 	),
+
+	decls.NewFunction(ContainsText,
+		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
+		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
+	),
 )
 
 type Extension struct{}
 
 func (ext *Extension) ImplementsFunction(fun string) bool {
 	switch fun {
-	case ExistsEquals, ExistsEqualsCI, ExistsStarts, ExistsStartsCI, ExistsEnds, ExistsEndsCI, ExistsContains, ExistsContainsCI, ExistsRegexp, ExistsRegexpCI:
+	case ExistsEquals, ExistsEqualsCI, ExistsStarts, ExistsStartsCI, ExistsEnds, ExistsEndsCI, ExistsContains, ExistsContainsCI, ContainsText, ExistsRegexp, ExistsRegexpCI:
 		return true
 	}
 	return false
@@ -176,6 +183,17 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 			return nil
 		}
 		return ext.callRegexp(con, target, args, regexpOptions{caseInsensitive: function == ExistsContainsCI, regexEscape: true})
+	case ContainsText:
+		con.WriteString("SEARCH(")
+		if err := con.Visit(target); err != nil {
+			return err
+		}
+		con.WriteString(", ")
+		if err := con.Visit(args[0]); err != nil {
+			return err
+		}
+		con.WriteString(")")
+		return nil
 	case ExistsRegexp, ExistsRegexpCI:
 		return ext.callRegexp(con, target, args, regexpOptions{caseInsensitive: function == ExistsRegexpCI})
 	default:
