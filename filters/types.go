@@ -101,7 +101,28 @@ var Declarations = cel.Declarations(
 	),
 )
 
-type Extension struct{}
+type Extension struct {
+	maxArgumentsToExpand int
+}
+
+type ExtensionOption func(*Extension)
+
+func WithMaxArgumentsToExpand(count int) ExtensionOption {
+	return func(ext *Extension) {
+		ext.maxArgumentsToExpand = count
+	}
+}
+
+func NewExtension(opts ...ExtensionOption) *Extension {
+	ext := &Extension{
+		// Default values.
+		maxArgumentsToExpand: 3,
+	}
+	for _, o := range opts {
+		o(ext)
+	}
+	return ext
+}
 
 func (ext *Extension) ImplementsFunction(fun string) bool {
 	switch fun {
@@ -155,6 +176,24 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 			case argType.GetPrimitive() == expr.Type_STRING:
 				return ext.callFunction(con, function, args[0], []*expr.Expr{target})
 			case cel2sql.IsListType(argType):
+				list := args[0].ExprKind.(*expr.Expr_ListExpr).ListExpr
+				if 2 <= len(list.Elements) && len(list.Elements) <= ext.maxArgumentsToExpand {
+					// Short list of arguments optimization:
+					// field.existsEquals(["foo", "bar"]) => "foo" IN field OR "bar" IN field.
+					con.WriteString("(")
+					for i, elem := range list.Elements {
+						con.WriteString("(")
+						if err := ext.callFunction(con, function, elem, []*expr.Expr{target}); err != nil {
+							return err
+						}
+						con.WriteString(")")
+						if i < len(list.Elements)-1 {
+							con.WriteString(" OR ")
+						}
+					}
+					con.WriteString(")")
+					return nil
+				}
 				return ext.callRegexp(con, target, args, regexpOptions{caseInsensitive: function == ExistsEqualsCI, startAnchor: true, endAnchor: true, regexEscape: true})
 			}
 		}

@@ -46,11 +46,12 @@ func TestConvert(t *testing.T) {
 		source string
 	}
 	tests := []struct {
-		name           string
-		args           args
-		want           string
-		wantCompileErr bool
-		wantErr        bool
+		name                 string
+		args                 args
+		maxArgumentsToExpand int
+		want                 string
+		wantCompileErr       bool
+		wantErr              bool
 	}{
 		{
 			name: "startsWith",
@@ -375,6 +376,22 @@ func TestConvert(t *testing.T) {
 			want: `"foo" = "bar" AND "foo" = "bar" AND "bar" IN UNNEST(["foo"]) AND "bar" IN UNNEST(["foo"])`,
 		},
 		{
+			name: "filters_exists_equals_many",
+			args: args{source: `["a"].existsEquals(["b1", "b2"]) && ["a"].existsEquals(["b1", "b2", "b3"]) && ["a"].existsEquals(["b1", "b2", "b3", "b4"])`},
+			want: `(("b1" IN UNNEST(["a"])) OR ("b2" IN UNNEST(["a"]))) AND (("b1" IN UNNEST(["a"])) OR ("b2" IN UNNEST(["a"])) OR ("b3" IN UNNEST(["a"]))) AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["a"], "\x00") || "\x00", "\x00(b1|b2|b3|b4)\x00")`,
+		},
+		{
+			name: "filters_exists_equals_many_ci",
+			args: args{source: `["a"].existsEqualsCI(["b1", "b2"]) && ["a"].existsEqualsCI(["b1", "b2", "b3"]) && ["a"].existsEqualsCI(["b1", "b2", "b3", "b4"])`},
+			want: `((COLLATE("b1", "und:ci") IN UNNEST(["a"])) OR (COLLATE("b2", "und:ci") IN UNNEST(["a"]))) AND ((COLLATE("b1", "und:ci") IN UNNEST(["a"])) OR (COLLATE("b2", "und:ci") IN UNNEST(["a"])) OR (COLLATE("b3", "und:ci") IN UNNEST(["a"]))) AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["a"], "\x00") || "\x00", "(?i)\x00(b1|b2|b3|b4)\x00")`,
+		},
+		{
+			name:                 "filters_exists_equals_many_custom_maxArgumentsToExpand",
+			args:                 args{source: `["a"].existsEquals(["b1", "b2"]) && ["a"].existsEquals(["b1", "b2", "b3"]) && ["a"].existsEquals(["b1", "b2", "b3", "b4"])`},
+			want:                 `(("b1" IN UNNEST(["a"])) OR ("b2" IN UNNEST(["a"]))) AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["a"], "\x00") || "\x00", "\x00(b1|b2|b3)\x00") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["a"], "\x00") || "\x00", "\x00(b1|b2|b3|b4)\x00")`,
+			maxArgumentsToExpand: 2,
+		},
+		{
 			name: "filters_exists_equals_ci",
 			args: args{source: `"foo".existsEqualsCI("bar") && "foo".existsEqualsCI(["bar"]) && ["foo"].existsEqualsCI("bar") && ["foo"].existsEqualsCI(["bar"])`},
 			want: `COLLATE("foo", "und:ci") = "bar" AND COLLATE("foo", "und:ci") = "bar" AND COLLATE("bar", "und:ci") IN UNNEST(["foo"]) AND COLLATE("bar", "und:ci") IN UNNEST(["foo"])`,
@@ -421,7 +438,13 @@ func TestConvert(t *testing.T) {
 			}
 			require.Empty(t, issues)
 
-			got, err := cel2sql.Convert(ast, cel2sql.WithExtension(&filters.Extension{}))
+			var extOpts []filters.ExtensionOption
+			if tt.maxArgumentsToExpand != 0 {
+				extOpts = append(extOpts, filters.WithMaxArgumentsToExpand(tt.maxArgumentsToExpand))
+			}
+			ext := filters.NewExtension(extOpts...)
+
+			got, err := cel2sql.Convert(ast, cel2sql.WithExtension(ext))
 			if !tt.wantErr && assert.NoError(t, err) {
 				assert.Equal(t, tt.want, got)
 			} else {
@@ -429,7 +452,7 @@ func TestConvert(t *testing.T) {
 			}
 
 			t.Run("WithValueTracker", func(t *testing.T) {
-				got, err := cel2sql.Convert(ast, cel2sql.WithValueTracker(tracker), cel2sql.WithExtension(&filters.Extension{}))
+				got, err := cel2sql.Convert(ast, cel2sql.WithValueTracker(tracker), cel2sql.WithExtension(ext))
 				for _, v := range tracker.Values {
 					got = strings.ReplaceAll(got, "@"+v.Name, cel2sql.ValueToString(v.Value))
 				}
