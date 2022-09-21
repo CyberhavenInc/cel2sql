@@ -382,12 +382,12 @@ func TestConvert(t *testing.T) {
 		{
 			name: "filters_exists_regexp",
 			args: args{source: `"foo".existsRegexp("bar") && "foo".existsRegexp(["bar"]) && ["foo"].existsRegexp("bar") && ["foo"].existsRegexp(["bar"])`},
-			want: `REGEXP_CONTAINS("foo", "((bar))") AND REGEXP_CONTAINS("foo", "((bar))") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "((bar))") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "((bar))")`,
+			want: `REGEXP_CONTAINS("foo", "(bar)") AND REGEXP_CONTAINS("foo", "(bar)") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(bar)") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(bar)")`,
 		},
 		{
 			name: "filters_exists_regexp_ci",
 			args: args{source: `"foo".existsRegexpCI("bar") && "foo".existsRegexpCI(["^bar$"]) && ["foo"].existsRegexpCI("^bar") && ["foo"].existsRegexpCI(["bar$"])`},
-			want: `REGEXP_CONTAINS("foo", "(?i)((bar))") AND REGEXP_CONTAINS("foo", "(?i)((^bar$))") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(?i)((\x00bar))") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(?i)((bar\x00))")`,
+			want: `REGEXP_CONTAINS("foo", "(?i)(bar)") AND REGEXP_CONTAINS("foo", "(?i)(^bar$)") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(?i)(\x00bar)") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(?i)(bar\x00)")`,
 		},
 		{
 			name: "filters_exists_regexp_many_patterns",
