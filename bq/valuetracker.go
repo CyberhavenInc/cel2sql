@@ -16,6 +16,10 @@ func NewBigQueryNamedTracker() *BigQueryNamedTracker {
 }
 
 func (t *BigQueryNamedTracker) AddValue(val interface{}) string {
+	if val == nil {
+		// NULL cannot be passed as a parameter
+		return "NULL"
+	}
 	for _, v := range t.Values {
 		if reflect.DeepEqual(v.Value, val) {
 			return "@" + v.Name
