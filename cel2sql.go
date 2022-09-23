@@ -529,6 +529,8 @@ func (con *Converter) visitCallFunc(expr *exprpb.Expr) error {
 	target := c.GetTarget()
 	args := c.GetArgs()
 	switch fun {
+	case "get":
+		return con.visitCallListGet(target, args)
 	case overloads.Contains:
 		return con.callContains(target, args)
 	case overloads.TypeConvertDuration:
@@ -640,6 +642,19 @@ func (con *Converter) visitCallListIndex(expr *exprpb.Expr) error {
 	con.str.WriteString("[OFFSET(")
 	index := args[1]
 	if err := con.Visit(index); err != nil {
+		return err
+	}
+	con.str.WriteString(")]")
+	return nil
+}
+
+func (con *Converter) visitCallListGet(target *exprpb.Expr, args []*exprpb.Expr) error {
+	nested := isBinaryOrTernaryOperator(target)
+	if err := con.visitMaybeNested(target, nested); err != nil {
+		return err
+	}
+	con.str.WriteString("[SAFE_OFFSET(")
+	if err := con.Visit(args[0]); err != nil {
 		return err
 	}
 	con.str.WriteString(")]")

@@ -16,6 +16,10 @@ var (
 	DatePart = decls.NewAbstractType("date_part")
 )
 
+var (
+	typeV = decls.NewTypeParamType("V")
+)
+
 func newConstantString(str string) *expr.Constant {
 	return &expr.Constant{ConstantKind: &expr.Constant_StringValue{StringValue: str}}
 }
@@ -334,5 +338,11 @@ var SQLTypeDeclarations = cel.Declarations(
 	),
 	decls.NewFunction("soundex",
 		decls.NewOverload("bytes_soundex", []*expr.Type{decls.String}, decls.String),
+	),
+
+	// safe array indexing operators
+	// https://cloud.google.com/bigquery/docs/reference/standard-sql/operators#array_subscript_operator
+	decls.NewFunction("get",
+		decls.NewParameterizedInstanceOverload("list_get", []*expr.Type{decls.NewListType(typeV), decls.Int}, typeV, []string{"V"}),
 	),
 )

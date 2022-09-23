@@ -144,6 +144,16 @@ func TestConvert(t *testing.T) {
 			want: "`string_list`[OFFSET(0)] = \"a\"",
 		},
 		{
+			name: "safe_list",
+			args: args{source: `[1, 2, 3].get(0) == 1`},
+			want: "[1, 2, 3][SAFE_OFFSET(0)] = 1",
+		},
+		{
+			name: "safe_list_var",
+			args: args{source: `string_list.get(0) == "a"`},
+			want: "`string_list`[SAFE_OFFSET(0)] = \"a\"",
+		},
+		{
 			name: "map",
 			args: args{source: `{"one": 1, "two": 2, "three": 3}["one"] == 1`},
 			want: "STRUCT(1 AS one, 2 AS two, 3 AS three).`one` = 1",
@@ -319,6 +329,21 @@ func TestConvert(t *testing.T) {
 			name: "fieldSelect_in",
 			args: args{source: `"test" in trigram.cell[0].value`},
 			want: "\"test\" IN UNNEST(`trigram`.`cell`[OFFSET(0)].`value`)",
+		},
+		{
+			name: "safe_fieldSelect_add",
+			args: args{source: `trigram.cell.get(0).page_count + 1`},
+			want: "`trigram`.`cell`[SAFE_OFFSET(0)].`page_count` + 1",
+		},
+		{
+			name: "safe_fieldSelect_concatString",
+			args: args{source: `trigram.cell.get(0).sample.get(0).title + "test"`},
+			want: "`trigram`.`cell`[SAFE_OFFSET(0)].`sample`[SAFE_OFFSET(0)].`title` || \"test\"",
+		},
+		{
+			name: "safe_fieldSelect_in",
+			args: args{source: `"test" in trigram.cell.get(0).value`},
+			want: "\"test\" IN UNNEST(`trigram`.`cell`[SAFE_OFFSET(0)].`value`)",
 		},
 		{
 			name: "cast_bool",
