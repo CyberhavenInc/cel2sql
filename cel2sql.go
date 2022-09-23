@@ -490,6 +490,36 @@ func (con *Converter) callExtractFromTimestamp(function string, target *exprpb.E
 	return nil
 }
 
+func (con *Converter) callTimestampTrunc(target *exprpb.Expr, args []*exprpb.Expr) error {
+	t := con.GetType(target)
+	if isTimestampType(t) {
+		con.str.WriteString("TIMESTAMP_TRUNC(")
+	} else if isDateTimeType(t) {
+		con.str.WriteString("DATETIME_TRUNC(")
+	} else if isDateType(t) {
+		con.str.WriteString("DATE_TRUNC(")
+	} else if isTimeType(t) {
+		con.str.WriteString("TIME_TRUNC(")
+	} else {
+		panic("unexpected trunc() target type")
+	}
+	if err := con.Visit(target); err != nil {
+		return err
+	}
+	c := args[0].GetIdentExpr()
+	if c == nil {
+		return fmt.Errorf("trunc() argument must be constant")
+	}
+	str := c.GetName()
+	if strings.IndexFunc(str, func(r rune) bool { return r < 'A' || r > 'Z' }) != -1 {
+		return fmt.Errorf("trunc() argument must be an upper case word")
+	}
+	con.str.WriteString(", ")
+	con.str.WriteString(str)
+	con.str.WriteString(")")
+	return nil
+}
+
 func (con *Converter) callCasting(function string, target *exprpb.Expr, args []*exprpb.Expr) error {
 	arg := args[0]
 	if function == overloads.TypeConvertInt && isTimestampType(con.GetType(arg)) {
@@ -537,6 +567,8 @@ func (con *Converter) visitCallFunc(expr *exprpb.Expr) error {
 		return con.callDuration(target, args)
 	case "interval":
 		return con.callInterval(target, args)
+	case "trunc":
+		return con.callTimestampTrunc(target, args)
 	case overloads.TimeGetFullYear,
 		overloads.TimeGetMonth,
 		overloads.TimeGetDate,

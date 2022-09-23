@@ -192,6 +192,13 @@ var SQLTypeDeclarations = cel.Declarations(
 	decls.NewFunction("current_timestamp",
 		decls.NewOverload("current_timestamp", []*expr.Type{}, decls.Timestamp),
 	),
+	// trunc function applicable to multiple time-related types
+	decls.NewFunction("trunc",
+		decls.NewInstanceOverload("date_trunc", []*expr.Type{Date, DatePart}, Date),
+		decls.NewInstanceOverload("time_trunc", []*expr.Type{Time, DatePart}, Time),
+		decls.NewInstanceOverload("datetime_trunc", []*expr.Type{DateTime, DatePart}, DateTime),
+		decls.NewInstanceOverload("timestamp_trunc", []*expr.Type{decls.Timestamp, DatePart}, decls.Timestamp),
+	),
 	// https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions
 	decls.NewFunction("ascii",
 		decls.NewOverload("string_ascii", []*expr.Type{decls.String}, decls.Int),

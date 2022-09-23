@@ -306,6 +306,26 @@ func TestConvert(t *testing.T) {
 			want: "EXTRACT(MINUTE FROM `fixed_time`)",
 		},
 		{
+			name: "date_trunc",
+			args: args{source: `date("2023-01-01").trunc(DAY)`},
+			want: `DATE_TRUNC(DATE("2023-01-01"), DAY)`,
+		},
+		{
+			name: "time_trunc",
+			args: args{source: `time("18:00:00").trunc(HOUR)`},
+			want: `TIME_TRUNC(TIME("18:00:00"), HOUR)`,
+		},
+		{
+			name: "datetime_trunc",
+			args: args{source: `datetime("2023-09-01 18:00:00").trunc(MINUTE)`},
+			want: `DATETIME_TRUNC(DATETIME("2023-09-01 18:00:00"), MINUTE)`,
+		},
+		{
+			name: "timestamp_trunc",
+			args: args{source: `timestamp("2023-09-01 18:00:00").trunc(WEEK)`},
+			want: `TIMESTAMP_TRUNC(TIMESTAMP("2023-09-01 18:00:00"), WEEK)`,
+		},
+		{
 			name: "fieldSelect",
 			args: args{source: `page.title == "test"`},
 			want: "`page`.`title` = \"test\"",
