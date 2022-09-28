@@ -283,7 +283,8 @@ func (ext *Extension) callRegexp(con *cel2sql.Converter, target *expr.Expr, args
 		con.WriteString("\"\\x00\" || ")
 	}
 	switch {
-	case tgtType.GetPrimitive() == expr.Type_STRING:
+	case tgtType.GetPrimitive() == expr.Type_STRING ||
+		tgtType.GetWrapper() == expr.Type_STRING:
 		if err := con.Visit(target); err != nil {
 			return err
 		}
@@ -293,6 +294,8 @@ func (ext *Extension) callRegexp(con *cel2sql.Converter, target *expr.Expr, args
 			return err
 		}
 		con.WriteString(", \"\\x00\")")
+	default:
+		return fmt.Errorf("unsupported target type: %v", tgtType)
 	}
 	if useZeroes {
 		con.WriteString(" || \"\\x00\"")
