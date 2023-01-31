@@ -7,7 +7,6 @@ import (
 
 	"github.com/cockscomb/cel2sql"
 	"github.com/google/cel-go/cel"
-	"github.com/google/cel-go/checker/decls"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
@@ -33,73 +32,125 @@ var ciFuncs = map[string]struct{}{
 	ExistsRegexpCI:   {},
 }
 
-var Declarations = cel.Declarations(
-	decls.NewFunction(ExistsEquals,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsEqualsCI,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsStarts,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsStartsCI,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsEnds,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsEndsCI,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsContains,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsContainsCI,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsRegexp,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
-	decls.NewFunction(ExistsRegexpCI,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("string_to_list", []*expr.Type{decls.String, decls.NewListType(decls.String)}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_list", []*expr.Type{decls.NewListType(decls.String), decls.NewListType(decls.String)}, decls.Bool),
-	),
+var stringListCelType = cel.ListType(cel.StringType)
 
-	decls.NewFunction(ExistsContainsTextCI,
-		decls.NewInstanceOverload("string_to_string", []*expr.Type{decls.String, decls.String}, decls.Bool),
-		decls.NewInstanceOverload("list_to_string", []*expr.Type{decls.NewListType(decls.String), decls.String}, decls.Bool),
+func makeFunction(name string, ci bool,
+	s2s func(target, pattern string) (bool, error),
+	s2l func(target string, patterns []string) (bool, error),
+	l2s func(targets []string, pattern string) (bool, error),
+	l2l func(targets, patterns []string) (bool, error),
+) cel.EnvOption {
+	var (
+		wraps2s = wrapS2S
+		wraps2l = wrapS2L
+		wrapl2s = wrapL2S
+		wrapl2l = wrapL2L
+	)
+	if ci {
+		wraps2s = wrapS2SCI
+		wraps2l = wrapS2LCI
+		wrapl2s = wrapL2SCI
+		wrapl2l = wrapL2LCI
+	}
+	return cel.Function(name,
+		cel.MemberOverload(name+"_string_to_string",
+			[]*cel.Type{cel.StringType, cel.StringType}, cel.BoolType,
+			cel.BinaryBinding(wraps2s(s2s)),
+		),
+		cel.MemberOverload(name+"_string_to_list",
+			[]*cel.Type{cel.StringType, stringListCelType}, cel.BoolType,
+			cel.BinaryBinding(wraps2l(s2l)),
+		),
+		cel.MemberOverload(name+"_list_to_string",
+			[]*cel.Type{stringListCelType, cel.StringType}, cel.BoolType,
+			cel.BinaryBinding(wrapl2s(l2s)),
+		),
+		cel.MemberOverload(name+"_list_to_list",
+			[]*cel.Type{stringListCelType, stringListCelType}, cel.BoolType,
+			cel.BinaryBinding(wrapl2l(l2l)),
+		),
+	)
+}
+
+var celFunctions = []cel.EnvOption{
+	makeFunction(ExistsEquals, false,
+		goExistsEqualsStringToString,
+		goExistsEqualsStringToList,
+		goExistsEqualsListToString,
+		goExistsEqualsListToList,
 	),
-)
+	makeFunction(ExistsEqualsCI, true,
+		goExistsEqualsStringToString,
+		goExistsEqualsStringToList,
+		goExistsEqualsListToString,
+		goExistsEqualsListToList,
+	),
+	makeFunction(ExistsStarts, false,
+		goExistsStartsStringToString,
+		goExistsStartsStringToList,
+		goExistsStartsListToString,
+		goExistsStartsListToList,
+	),
+	makeFunction(ExistsStartsCI, true,
+		goExistsStartsStringToString,
+		goExistsStartsStringToList,
+		goExistsStartsListToString,
+		goExistsStartsListToList,
+	),
+	makeFunction(ExistsEnds, false,
+		goExistsEndsStringToString,
+		goExistsEndsStringToList,
+		goExistsEndsListToString,
+		goExistsEndsListToList,
+	),
+	makeFunction(ExistsEndsCI, true,
+		goExistsEndsStringToString,
+		goExistsEndsStringToList,
+		goExistsEndsListToString,
+		goExistsEndsListToList,
+	),
+	makeFunction(ExistsContains, false,
+		goExistsContainsStringToString,
+		goExistsContainsStringToList,
+		goExistsContainsListToString,
+		goExistsContainsListToList,
+	),
+	makeFunction(ExistsContainsCI, true,
+		goExistsContainsStringToString,
+		goExistsContainsStringToList,
+		goExistsContainsListToString,
+		goExistsContainsListToList,
+	),
+	makeFunction(ExistsRegexp, false,
+		goExistsRegexpStringToString,
+		goExistsRegexpStringToList,
+		goExistsRegexpListToString,
+		goExistsRegexpListToList,
+	),
+	makeFunction(ExistsRegexpCI, true,
+		goExistsRegexpStringToString,
+		goExistsRegexpStringToList,
+		goExistsRegexpListToString,
+		goExistsRegexpListToList,
+	),
+	makeFunction(ExistsContainsTextCI, true,
+		goExistsContainsTextStringToString,
+		goExistsContainsTextStringToList,
+		goExistsContainsTextListToString,
+		goExistsContainsTextListToList,
+	),
+}
+
+var Declarations = cel.EnvOption(func(e *cel.Env) (*cel.Env, error) {
+	var err error
+	for _, f := range celFunctions {
+		e, err = f(e)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return e, nil
+})
 
 type Extension struct {
 	maxArgumentsToExpand int
