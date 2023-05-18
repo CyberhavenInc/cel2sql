@@ -19,6 +19,8 @@ import (
 
 func TestConvert(t *testing.T) {
 	env, err := cel.NewEnv(
+		cel.EnableMacroCallTracking(),
+		sqltypes.AdditionalMacros,
 		cel.CustomTypeProvider(bq.NewTypeProvider(map[string]bigquery.Schema{
 			"trigrams":  test.NewTrigramsTableMetadata().Schema,
 			"wikipedia": test.NewWikipediaTableMetadata().Schema,
@@ -38,6 +40,7 @@ func TestConvert(t *testing.T) {
 			decls.NewVar("created_at", decls.Timestamp),
 			decls.NewVar("trigram", decls.NewObjectType("trigrams")),
 			decls.NewVar("page", decls.NewObjectType("wikipedia")),
+			decls.NewVar("pages", decls.NewListType(decls.NewObjectType("wikipedia"))),
 		),
 		filters.Declarations,
 	)
@@ -470,6 +473,26 @@ func TestConvert(t *testing.T) {
 			name: "filters_empty_array_args",
 			args: args{source: `"foo".existsEqualsCI([]) && "foo".existsStarts([]) && ["foo"].existsEndsCI([]) && ["foo"].existsContains([]) && "foo".existsRegexpCI([])`},
 			want: "FALSE AND FALSE AND FALSE AND FALSE AND FALSE",
+		},
+		{
+			name: "map",
+			args: args{source: `pages.map(p, p.title)`},
+			want: "ARRAY(SELECT `p`.`title` FROM `pages` AS p)",
+		},
+		{
+			name: "mapFilter",
+			args: args{source: `pages.map(p, p.language == "english", p.title)`},
+			want: "ARRAY(SELECT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
+		},
+		{
+			name: "mapDistinct",
+			args: args{source: `pages.mapDistinct(p, p.title)`},
+			want: "ARRAY(SELECT DISTINCT `p`.`title` FROM `pages` AS p)",
+		},
+		{
+			name: "mapDistinctFilter",
+			args: args{source: `pages.mapDistinct(p, p.language == "english", p.title)`},
+			want: "ARRAY(SELECT DISTINCT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
 		},
 	}
 

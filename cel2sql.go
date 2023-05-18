@@ -26,6 +26,7 @@ func Convert(ast *cel.Ast, opts ...ConvertOption) (string, error) {
 	}
 	un := &Converter{
 		typeMap:      checkedExpr.TypeMap,
+		macroCalls:   checkedExpr.GetSourceInfo().GetMacroCalls(),
 		valueTracker: &embedTracker{},
 	}
 	for _, opt := range opts {
@@ -103,6 +104,7 @@ type IdentTracker interface {
 type Converter struct {
 	str          strings.Builder
 	typeMap      map[int64]*exprpb.Type
+	macroCalls   map[int64]*exprpb.Expr
 	valueTracker ValueTracker
 	identTracker IdentTracker
 	extensions   []Extension
@@ -715,22 +717,82 @@ func (con *Converter) visitCallUnary(expr *exprpb.Expr) error {
 }
 
 func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
-	// TODO: introduce a macro expansion map between the top-level comprehension id and the
-	// function call that the macro replaces.
-
 	// Comprehenions like:
 	//   array.exists(x, expr(x))
 	// are transformed into
 	// 	 EXISTS (SELECT * FROM UNNEST(array) AS x WHERE expr_sql(x)))
 	// where expr_sql() is the SQL equivalent of the expr() CEL expression
 	// TODO: Test more extensively and add more checks.
+
+	origExpr, found := con.macroCalls[expr.Id]
+	if !found {
+		return fmt.Errorf("can't get original expr for comprehension. `EnableMacroCallTracking` missing?")
+	}
+	f := origExpr.GetCallExpr()
+	if f == nil {
+		return fmt.Errorf("original ast node for comprehension is not a call")
+	}
+
+	switch fn := f.GetFunction(); fn {
+	case "exists":
+		return con.visitExistComprehension(expr)
+	case "map":
+		return con.visitMapComprehension(expr, false)
+	case "mapDistinct":
+		return con.visitMapComprehension(expr, true)
+	default:
+		return fmt.Errorf("comprehension %s is not supported", fn)
+	}
+}
+
+func (con *Converter) visitExistComprehension(expr *exprpb.Expr) error {
 	e := expr.GetComprehensionExpr()
 	con.str.WriteString("EXISTS (SELECT * FROM UNNEST(")
-	con.Visit(e.GetIterRange())
+	if err := con.Visit(e.GetIterRange()); err != nil {
+		return err
+	}
 	con.str.WriteString(fmt.Sprintf(") AS %s WHERE ", e.GetIterVar()))
-	con.Visit(e.GetLoopStep().GetCallExpr().GetArgs()[1])
+	if err := con.Visit(e.GetLoopStep().GetCallExpr().GetArgs()[1]); err != nil {
+		return err
+	}
 	con.str.WriteString(")")
 	return nil
+}
+
+func (con *Converter) visitMapComprehension(expr *exprpb.Expr, distinct bool) error {
+	e := expr.GetComprehensionExpr()
+	con.str.WriteString("ARRAY(SELECT ")
+	if distinct {
+		con.str.WriteString("DISTINCT ")
+	}
+	var filter *exprpb.Expr
+	switch s := e.GetLoopStep().GetCallExpr(); s.GetFunction() {
+	case operators.Add:
+		if err := con.Visit(s.GetArgs()[1].GetListExpr().GetElements()[0]); err != nil {
+			return err
+		}
+	case operators.Conditional:
+		if err := con.Visit(s.GetArgs()[1].GetCallExpr().GetArgs()[1].GetListExpr().GetElements()[0]); err != nil {
+			return err
+		}
+		filter = s.GetArgs()[0]
+	default:
+		return fmt.Errorf("uknown opereator for map comprehension")
+	}
+	con.str.WriteString(" FROM ")
+	if err := con.Visit(e.GetIterRange()); err != nil {
+		return err
+	}
+	con.str.WriteString(fmt.Sprintf(" AS %s", e.GetIterVar()))
+	if filter != nil {
+		con.str.WriteString(" WHERE ")
+		if err := con.Visit(filter); err != nil {
+			return err
+		}
+	}
+	con.str.WriteString(")")
+	return nil
+
 }
 
 func GetConstValue(expr *exprpb.Expr) (interface{}, error) {

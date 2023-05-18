@@ -5,6 +5,7 @@ import (
 	"github.com/google/cel-go/checker/decls"
 	"github.com/google/cel-go/common/operators"
 	"github.com/google/cel-go/common/overloads"
+	"github.com/google/cel-go/parser"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
@@ -352,4 +353,9 @@ var SQLTypeDeclarations = cel.Declarations(
 	decls.NewFunction("get",
 		decls.NewParameterizedInstanceOverload("list_get", []*expr.Type{decls.NewListType(typeV), decls.Int}, typeV, []string{"V"}),
 	),
+)
+
+var AdditionalMacros = cel.Macros(
+	cel.NewReceiverMacro("mapDistinct", 2, parser.MakeMap),
+	cel.NewReceiverMacro("mapDistinct", 3, parser.MakeMap),
 )
