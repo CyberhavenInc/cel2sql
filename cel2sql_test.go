@@ -33,6 +33,8 @@ func TestConvert(t *testing.T) {
 			decls.NewVar("height", decls.Double),
 			decls.NewVar("string_list", decls.NewListType(decls.String)),
 			decls.NewVar("string_int_map", decls.NewMapType(decls.String, decls.Int)),
+			decls.NewVar("nullable_string", decls.NewWrapperType(decls.String)),
+			decls.NewVar("nullable_bytes", decls.NewWrapperType(decls.Bytes)),
 			decls.NewVar("null_var", decls.Null),
 			decls.NewVar("birthday", sqltypes.Date),
 			decls.NewVar("fixed_time", sqltypes.Time),
@@ -187,6 +189,36 @@ func TestConvert(t *testing.T) {
 			name: "concatString",
 			args: args{source: `"a" + "b" == "ab"`},
 			want: `"a" || "b" = "ab"`,
+		},
+		{
+			name: "nullable_string_isNull",
+			args: args{source: `nullable_string == null`},
+			want: "`nullable_string` IS NULL",
+		},
+		{
+			name: "nullable_string_equals",
+			args: args{source: `nullable_string == "hello"`},
+			want: "`nullable_string` = \"hello\"",
+		},
+		{
+			name: "nullable_string_concat",
+			args: args{source: `nullable_string + "hello"`},
+			want: "`nullable_string` || \"hello\"",
+		},
+		{
+			name: "nullable_bytes_isNull",
+			args: args{source: `nullable_bytes == null`},
+			want: "`nullable_bytes` IS NULL",
+		},
+		{
+			name: "nullable_bytes_equals",
+			args: args{source: `nullable_bytes == b"hello"`},
+			want: "`nullable_bytes` = b\"\\150\\145\\154\\154\\157\"",
+		},
+		{
+			name: "nullable_bytes_concat",
+			args: args{source: `nullable_bytes + b"hello"`},
+			want: "`nullable_bytes` || b\"\\150\\145\\154\\154\\157\"",
 		},
 		{
 			name: "concatList",
@@ -404,9 +436,19 @@ func TestConvert(t *testing.T) {
 			want: `LENGTH("test")`,
 		},
 		{
+			name: "size_nullable_string",
+			args: args{source: `size(nullable_string)`},
+			want: "LENGTH(`nullable_string`)",
+		},
+		{
 			name: "size_bytes",
 			args: args{source: `size(bytes("test"))`},
 			want: `LENGTH(CAST("test" AS BYTES))`,
+		},
+		{
+			name: "size_nullable_bytes",
+			args: args{source: `size(nullable_bytes)`},
+			want: "LENGTH(`nullable_bytes`)",
 		},
 		{
 			name: "size_list",

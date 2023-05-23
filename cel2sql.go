@@ -220,9 +220,9 @@ func (con *Converter) visitCallBinary(expr *exprpb.Expr) error {
 		return err
 	}
 	var operator string
-	if fun == operators.Add && (lhsType.GetPrimitive() == exprpb.Type_STRING && rhsType.GetPrimitive() == exprpb.Type_STRING) {
+	if fun == operators.Add && (IsStringType(lhsType) && IsStringType(rhsType)) {
 		operator = "||"
-	} else if fun == operators.Add && (rhsType.GetPrimitive() == exprpb.Type_BYTES && lhsType.GetPrimitive() == exprpb.Type_BYTES) {
+	} else if fun == operators.Add && (IsBytesType(lhsType) && IsBytesType(rhsType)) {
 		operator = "||"
 	} else if fun == operators.Add && (IsListType(lhsType) && IsListType(rhsType)) {
 		operator = "||"
@@ -602,9 +602,7 @@ func (con *Converter) visitCallFunc(expr *exprpb.Expr) error {
 		if fun == overloads.Size {
 			argType := con.GetType(args[0])
 			switch {
-			case argType.GetPrimitive() == exprpb.Type_STRING:
-				sqlFun = "LENGTH"
-			case argType.GetPrimitive() == exprpb.Type_BYTES:
+			case IsStringType(argType), IsBytesType(argType):
 				sqlFun = "LENGTH"
 			case IsListType(argType):
 				sqlFun = "ARRAY_LENGTH"
@@ -982,6 +980,14 @@ func IsMapType(typ *exprpb.Type) bool {
 func IsListType(typ *exprpb.Type) bool {
 	_, ok := typ.TypeKind.(*exprpb.Type_ListType_)
 	return ok
+}
+
+func IsStringType(typ *exprpb.Type) bool {
+	return typ.GetPrimitive() == exprpb.Type_STRING || typ.GetWrapper() == exprpb.Type_STRING
+}
+
+func IsBytesType(typ *exprpb.Type) bool {
+	return typ.GetPrimitive() == exprpb.Type_BYTES || typ.GetWrapper() == exprpb.Type_BYTES
 }
 
 // isLeftRecursive indicates whether the parser resolves the call in a left-recursive manner as
