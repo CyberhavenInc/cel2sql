@@ -108,7 +108,7 @@ type Converter struct {
 	valueTracker ValueTracker
 	identTracker IdentTracker
 	extensions   []Extension
-	compIterVar  *string
+	compIterVars []string
 }
 
 func (con *Converter) WriteString(s string) (int, error) {
@@ -117,7 +117,7 @@ func (con *Converter) WriteString(s string) (int, error) {
 
 func (con *Converter) WriteIdent(rootExpr *exprpb.Expr, path []string) error {
 	if con.identTracker != nil {
-		if con.compIterVar == nil || len(path) == 0 || path[0] != *con.compIterVar {
+		if !con.isComprehensionIterVarAccess(path) {
 			path = con.identTracker.AddIdentAccess(rootExpr, path)
 		}
 	}
@@ -735,8 +735,8 @@ func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
 	}
 
 	e := expr.GetComprehensionExpr()
-	con.setComprehensionIterVar(e.GetIterVar())
-	defer con.clearComprehensionIterVar()
+	con.pushComprehensionIterVar(e.GetIterVar())
+	defer con.popComprehensionIterVar()
 
 	switch fn := f.GetFunction(); fn {
 	case "exists":
@@ -750,12 +750,12 @@ func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
 	}
 }
 
-func (con *Converter) setComprehensionIterVar(v string) {
-	con.compIterVar = &v
+func (con *Converter) pushComprehensionIterVar(v string) {
+	con.compIterVars = append(con.compIterVars, v)
 }
 
-func (con *Converter) clearComprehensionIterVar() {
-	con.compIterVar = nil
+func (con *Converter) popComprehensionIterVar() {
+	con.compIterVars = con.compIterVars[:len(con.compIterVars)-1]
 }
 
 func (con *Converter) visitExistComprehension(expr *exprpb.Expr) error {
@@ -981,6 +981,20 @@ func (con *Converter) visitMaybeNested(expr *exprpb.Expr, nested bool) error {
 		con.str.WriteString(")")
 	}
 	return nil
+}
+
+func (con *Converter) isComprehensionIterVarAccess(path []string) bool {
+	if len(path) == 0 {
+		return false
+	}
+
+	for _, v := range con.compIterVars {
+		if v == path[0] {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (con *Converter) GetType(node *exprpb.Expr) *exprpb.Type {
