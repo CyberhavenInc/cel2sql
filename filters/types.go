@@ -206,12 +206,12 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 	switch function {
 	case ExistsEquals, ExistsEqualsCI:
 		switch {
-		case tgtType.GetPrimitive() == expr.Type_STRING:
+		case cel2sql.IsStringType(tgtType):
 			if err := writeTarget(con, function, target); err != nil {
 				return err
 			}
 			switch {
-			case argType.GetPrimitive() == expr.Type_STRING:
+			case cel2sql.IsStringType(argType):
 				con.WriteString(" = ")
 				return con.Visit(args[0])
 			case cel2sql.IsListType(argType):
@@ -224,7 +224,7 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 			}
 		case cel2sql.IsListType(tgtType):
 			switch {
-			case argType.GetPrimitive() == expr.Type_STRING:
+			case cel2sql.IsStringType(argType):
 				return ext.callFunction(con, function, args[0], []*expr.Expr{target})
 			case cel2sql.IsListType(argType):
 				list := args[0].ExprKind.(*expr.Expr_ListExpr).ListExpr
@@ -249,7 +249,7 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 			}
 		}
 	case ExistsStarts, ExistsStartsCI:
-		if tgtType.GetPrimitive() == expr.Type_STRING && argType.GetPrimitive() == expr.Type_STRING {
+		if cel2sql.IsStringType(tgtType) && cel2sql.IsStringType(argType) {
 			if err := writeSimpleCall("STARTS_WITH", con, function, target, args[0]); err != nil {
 				return err
 			}
@@ -257,7 +257,7 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 		}
 		return ext.callRegexp(con, target, args, regexpOptions{caseInsensitive: function == ExistsStartsCI, startAnchor: true, regexEscape: true})
 	case ExistsEnds, ExistsEndsCI:
-		if tgtType.GetPrimitive() == expr.Type_STRING && argType.GetPrimitive() == expr.Type_STRING {
+		if cel2sql.IsStringType(tgtType) && cel2sql.IsStringType(argType) {
 			if err := writeSimpleCall("ENDS_WITH", con, function, target, args[0]); err != nil {
 				return err
 			}
@@ -265,7 +265,7 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 		}
 		return ext.callRegexp(con, target, args, regexpOptions{caseInsensitive: function == ExistsEndsCI, endAnchor: true, regexEscape: true})
 	case ExistsContains, ExistsContainsCI:
-		if tgtType.GetPrimitive() == expr.Type_STRING && argType.GetPrimitive() == expr.Type_STRING {
+		if cel2sql.IsStringType(tgtType) && cel2sql.IsStringType(argType) {
 			if err := writeSimpleCall("0 != INSTR", con, function, target, args[0]); err != nil {
 				return err
 			}
@@ -334,8 +334,7 @@ func (ext *Extension) callRegexp(con *cel2sql.Converter, target *expr.Expr, args
 		con.WriteString("\"\\x00\" || ")
 	}
 	switch {
-	case tgtType.GetPrimitive() == expr.Type_STRING ||
-		tgtType.GetWrapper() == expr.Type_STRING:
+	case cel2sql.IsStringType(tgtType):
 		if err := con.Visit(target); err != nil {
 			return err
 		}

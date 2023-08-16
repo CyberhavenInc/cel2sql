@@ -35,6 +35,7 @@ func TestConvert(t *testing.T) {
 			decls.NewVar("string_int_map", decls.NewMapType(decls.String, decls.Int)),
 			decls.NewVar("nullable_string", decls.NewWrapperType(decls.String)),
 			decls.NewVar("nullable_bytes", decls.NewWrapperType(decls.Bytes)),
+			decls.NewVar("nullable_strings", decls.NewListType(decls.NewWrapperType(decls.String))),
 			decls.NewVar("null_var", decls.Null),
 			decls.NewVar("birthday", sqltypes.Date),
 			decls.NewVar("fixed_time", sqltypes.Time),
@@ -220,6 +221,18 @@ func TestConvert(t *testing.T) {
 			name: "nullable_bytes_concat",
 			args: args{source: `nullable_bytes + b"hello"`},
 			want: "`nullable_bytes` || b\"\\150\\145\\154\\154\\157\"",
+		},
+		{
+			name:   "nullable_strings_containsNull",
+			args:   args{source: `nullable_strings.exists(x, x == null)`},
+			want:   "EXISTS (SELECT * FROM UNNEST(`nullable_strings`) AS x WHERE `x` IS NULL)",
+			idents: []string{"nullable_strings"},
+		},
+		{
+			name:   "nullable_strings_containsEquals",
+			args:   args{source: `nullable_strings.exists(x, x.existsEqualsCI(["hello"]))`},
+			want:   "EXISTS (SELECT * FROM UNNEST(`nullable_strings`) AS x WHERE COLLATE(`x`, \"und:ci\") = \"hello\")",
+			idents: []string{"nullable_strings"},
 		},
 		{
 			name: "concatList",
