@@ -108,6 +108,7 @@ type Converter struct {
 	valueTracker ValueTracker
 	identTracker IdentTracker
 	extensions   []Extension
+	compIterVar  *string
 }
 
 func (con *Converter) WriteString(s string) (int, error) {
@@ -116,7 +117,9 @@ func (con *Converter) WriteString(s string) (int, error) {
 
 func (con *Converter) WriteIdent(rootExpr *exprpb.Expr, path []string) error {
 	if con.identTracker != nil {
-		path = con.identTracker.AddIdentAccess(rootExpr, path)
+		if con.compIterVar == nil || len(path) == 0 || path[0] != *con.compIterVar {
+			path = con.identTracker.AddIdentAccess(rootExpr, path)
+		}
 	}
 	for i, p := range path {
 		if i != 0 || rootExpr != nil {
@@ -731,6 +734,10 @@ func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
 		return fmt.Errorf("original ast node for comprehension is not a call")
 	}
 
+	e := expr.GetComprehensionExpr()
+	con.setComprehensionIterVar(e.GetIterVar())
+	defer con.clearComprehensionIterVar()
+
 	switch fn := f.GetFunction(); fn {
 	case "exists":
 		return con.visitExistComprehension(expr)
@@ -741,6 +748,14 @@ func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
 	default:
 		return fmt.Errorf("comprehension %s is not supported", fn)
 	}
+}
+
+func (con *Converter) setComprehensionIterVar(v string) {
+	con.compIterVar = &v
+}
+
+func (con *Converter) clearComprehensionIterVar() {
+	con.compIterVar = nil
 }
 
 func (con *Converter) visitExistComprehension(expr *exprpb.Expr) error {
