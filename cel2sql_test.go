@@ -546,6 +546,12 @@ func TestConvert(t *testing.T) {
 			idents: []string{"pages"},
 		},
 		{
+			name:   "two_level_map",
+			args:   args{source: `pages.map(p, ["Title1", "Title2"].map(t, p.title + " " + t))`},
+			want:   "ARRAY(SELECT ARRAY(SELECT `p`.`title` || \" \" || `t` FROM [\"Title1\", \"Title2\"] AS t) FROM `pages` AS p)",
+			idents: []string{"pages"},
+		},
+		{
 			name:   "mapFilter",
 			args:   args{source: `pages.map(p, p.language == "english", p.title)`},
 			want:   "ARRAY(SELECT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
