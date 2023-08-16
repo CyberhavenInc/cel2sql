@@ -35,6 +35,7 @@ func TestConvert(t *testing.T) {
 			decls.NewVar("string_int_map", decls.NewMapType(decls.String, decls.Int)),
 			decls.NewVar("nullable_string", decls.NewWrapperType(decls.String)),
 			decls.NewVar("nullable_bytes", decls.NewWrapperType(decls.Bytes)),
+			decls.NewVar("nullable_strings", decls.NewListType(decls.NewWrapperType(decls.String))),
 			decls.NewVar("null_var", decls.Null),
 			decls.NewVar("birthday", sqltypes.Date),
 			decls.NewVar("fixed_time", sqltypes.Time),
@@ -57,6 +58,7 @@ func TestConvert(t *testing.T) {
 		want                 string
 		wantCompileErr       bool
 		wantErr              bool
+		idents               []string
 	}{
 		{
 			name: "startsWith",
@@ -221,6 +223,18 @@ func TestConvert(t *testing.T) {
 			want: "`nullable_bytes` || b\"\\150\\145\\154\\154\\157\"",
 		},
 		{
+			name:   "nullable_strings_containsNull",
+			args:   args{source: `nullable_strings.exists(x, x == null)`},
+			want:   "EXISTS (SELECT * FROM UNNEST(`nullable_strings`) AS x WHERE `x` IS NULL)",
+			idents: []string{"nullable_strings"},
+		},
+		{
+			name:   "nullable_strings_containsEquals",
+			args:   args{source: `nullable_strings.exists(x, x.existsEqualsCI(["hello"]))`},
+			want:   "EXISTS (SELECT * FROM UNNEST(`nullable_strings`) AS x WHERE COLLATE(`x`, \"und:ci\") = \"hello\")",
+			idents: []string{"nullable_strings"},
+		},
+		{
 			name: "concatList",
 			args: args{source: `1 in [1] + [2, 3]`},
 			want: "1 IN UNNEST([1] || [2, 3])",
@@ -361,44 +375,52 @@ func TestConvert(t *testing.T) {
 			want: `TIMESTAMP_TRUNC(TIMESTAMP("2023-09-01 18:00:00"), WEEK)`,
 		},
 		{
-			name: "fieldSelect",
-			args: args{source: `page.title == "test"`},
-			want: "`page`.`title` = \"test\"",
+			name:   "fieldSelect",
+			args:   args{source: `page.title == "test"`},
+			want:   "`page`.`title` = \"test\"",
+			idents: []string{"page.title"},
 		},
 		{
-			name: "fieldSelect_startsWith",
-			args: args{source: `page.title.startsWith("test")`},
-			want: "STARTS_WITH(`page`.`title`, \"test\")",
+			name:   "fieldSelect_startsWith",
+			args:   args{source: `page.title.startsWith("test")`},
+			want:   "STARTS_WITH(`page`.`title`, \"test\")",
+			idents: []string{"page.title"},
 		},
 		{
-			name: "fieldSelect_add",
-			args: args{source: `trigram.cell[0].page_count + 1`},
-			want: "`trigram`.`cell`[OFFSET(0)].`page_count` + 1",
+			name:   "fieldSelect_add",
+			args:   args{source: `trigram.cell[0].page_count + 1`},
+			want:   "`trigram`.`cell`[OFFSET(0)].`page_count` + 1",
+			idents: []string{"trigram.cell", ".page_count"},
 		},
 		{
-			name: "fieldSelect_concatString",
-			args: args{source: `trigram.cell[0].sample[0].title + "test"`},
-			want: "`trigram`.`cell`[OFFSET(0)].`sample`[OFFSET(0)].`title` || \"test\"",
+			name:   "fieldSelect_concatString",
+			args:   args{source: `trigram.cell[0].sample[0].title + "test"`},
+			want:   "`trigram`.`cell`[OFFSET(0)].`sample`[OFFSET(0)].`title` || \"test\"",
+			idents: []string{"trigram.cell", ".sample", ".title"},
 		},
 		{
-			name: "fieldSelect_in",
-			args: args{source: `"test" in trigram.cell[0].value`},
-			want: "\"test\" IN UNNEST(`trigram`.`cell`[OFFSET(0)].`value`)",
+			name:   "fieldSelect_in",
+			args:   args{source: `"test" in trigram.cell[0].value`},
+			want:   "\"test\" IN UNNEST(`trigram`.`cell`[OFFSET(0)].`value`)",
+			idents: []string{"trigram.cell", ".value"},
 		},
 		{
-			name: "safe_fieldSelect_add",
-			args: args{source: `trigram.cell.get(0).page_count + 1`},
-			want: "`trigram`.`cell`[SAFE_OFFSET(0)].`page_count` + 1",
+			name:   "safe_fieldSelect_add",
+			args:   args{source: `trigram.cell.get(0).page_count + 1`},
+			want:   "`trigram`.`cell`[SAFE_OFFSET(0)].`page_count` + 1",
+			idents: []string{"trigram.cell", ".page_count"},
 		},
 		{
-			name: "safe_fieldSelect_concatString",
-			args: args{source: `trigram.cell.get(0).sample.get(0).title + "test"`},
-			want: "`trigram`.`cell`[SAFE_OFFSET(0)].`sample`[SAFE_OFFSET(0)].`title` || \"test\"",
+			name:   "safe_fieldSelect_concatString",
+			args:   args{source: `trigram.cell.get(0).sample.get(0).title + "test"`},
+			want:   "`trigram`.`cell`[SAFE_OFFSET(0)].`sample`[SAFE_OFFSET(0)].`title` || \"test\"",
+			idents: []string{"trigram.cell", ".sample", ".title"},
 		},
 		{
-			name: "safe_fieldSelect_in",
-			args: args{source: `"test" in trigram.cell.get(0).value`},
-			want: "\"test\" IN UNNEST(`trigram`.`cell`[SAFE_OFFSET(0)].`value`)",
+			name:   "safe_fieldSelect_in",
+			args:   args{source: `"test" in trigram.cell.get(0).value`},
+			want:   "\"test\" IN UNNEST(`trigram`.`cell`[SAFE_OFFSET(0)].`value`)",
+			idents: []string{"trigram.cell", ".value"},
 		},
 		{
 			name: "cast_bool",
@@ -456,9 +478,10 @@ func TestConvert(t *testing.T) {
 			want: "ARRAY_LENGTH(`string_list`)",
 		},
 		{
-			name: "inplace_array_exists",
-			args: args{source: `["foo", "bar"].exists(x, x == "foo")`},
-			want: "EXISTS (SELECT * FROM UNNEST([\"foo\", \"bar\"]) AS x WHERE `x` = \"foo\")",
+			name:   "inplace_array_exists",
+			args:   args{source: `["foo", "bar"].exists(x, x == "foo")`},
+			want:   "EXISTS (SELECT * FROM UNNEST([\"foo\", \"bar\"]) AS x WHERE `x` = \"foo\")",
+			idents: []string{},
 		},
 		{
 			name: "filters_exists_equals",
@@ -517,24 +540,34 @@ func TestConvert(t *testing.T) {
 			want: "FALSE AND FALSE AND FALSE AND FALSE AND FALSE",
 		},
 		{
-			name: "map",
-			args: args{source: `pages.map(p, p.title)`},
-			want: "ARRAY(SELECT `p`.`title` FROM `pages` AS p)",
+			name:   "map",
+			args:   args{source: `pages.map(p, p.title)`},
+			want:   "ARRAY(SELECT `p`.`title` FROM `pages` AS p)",
+			idents: []string{"pages"},
 		},
 		{
-			name: "mapFilter",
-			args: args{source: `pages.map(p, p.language == "english", p.title)`},
-			want: "ARRAY(SELECT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
+			name:   "two_level_map",
+			args:   args{source: `pages.map(p, ["Title1", "Title2"].map(t, p.title + " " + t))`},
+			want:   "ARRAY(SELECT ARRAY(SELECT `p`.`title` || \" \" || `t` FROM [\"Title1\", \"Title2\"] AS t) FROM `pages` AS p)",
+			idents: []string{"pages"},
 		},
 		{
-			name: "mapDistinct",
-			args: args{source: `pages.mapDistinct(p, p.title)`},
-			want: "ARRAY(SELECT DISTINCT `p`.`title` FROM `pages` AS p)",
+			name:   "mapFilter",
+			args:   args{source: `pages.map(p, p.language == "english", p.title)`},
+			want:   "ARRAY(SELECT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
+			idents: []string{"pages"},
 		},
 		{
-			name: "mapDistinctFilter",
-			args: args{source: `pages.mapDistinct(p, p.language == "english", p.title)`},
-			want: "ARRAY(SELECT DISTINCT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
+			name:   "mapDistinct",
+			args:   args{source: `pages.mapDistinct(p, p.title)`},
+			want:   "ARRAY(SELECT DISTINCT `p`.`title` FROM `pages` AS p)",
+			idents: []string{"pages"},
+		},
+		{
+			name:   "mapDistinctFilter",
+			args:   args{source: `pages.mapDistinct(p, p.language == "english", p.title)`},
+			want:   "ARRAY(SELECT DISTINCT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
+			idents: []string{"pages"},
 		},
 	}
 
@@ -554,7 +587,15 @@ func TestConvert(t *testing.T) {
 			}
 			ext := filters.NewExtension(extOpts...)
 
-			got, err := cel2sql.Convert(ast, cel2sql.WithExtension(ext))
+			identTracker := identTracker(make(map[string]struct{}))
+			got, err := cel2sql.Convert(ast, cel2sql.WithExtension(ext), cel2sql.WithIdentTracker(identTracker))
+			if len(tt.idents) != 0 {
+				observedIdents := make([]string, 0, len(identTracker))
+				for ident := range identTracker {
+					observedIdents = append(observedIdents, ident)
+				}
+				assert.ElementsMatch(t, tt.idents, observedIdents)
+			}
 			if !tt.wantErr && assert.NoError(t, err) {
 				assert.Equal(t, tt.want, got)
 			} else {
@@ -574,4 +615,15 @@ func TestConvert(t *testing.T) {
 			})
 		})
 	}
+}
+
+type identTracker map[string]struct{}
+
+func (t identTracker) AddIdentAccess(rootExpr *cel2sql.Expr, path []string) (res []string) {
+	if rootExpr == nil {
+		t[strings.Join(path, ".")] = struct{}{}
+	} else {
+		t["."+strings.Join(path, ".")] = struct{}{}
+	}
+	return path
 }
