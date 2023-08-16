@@ -584,10 +584,11 @@ func TestConvert(t *testing.T) {
 			identTracker := identTracker(make(map[string]struct{}))
 			got, err := cel2sql.Convert(ast, cel2sql.WithExtension(ext), cel2sql.WithIdentTracker(identTracker))
 			if len(tt.idents) != 0 {
-				assert.Equal(t, len(tt.idents), len(identTracker))
-				for _, i := range tt.idents {
-					assert.Contains(t, identTracker, i)
+				observedIdents := make([]string, 0, len(identTracker))
+				for ident := range identTracker {
+					observedIdents = append(observedIdents, ident)
 				}
+				assert.ElementsMatch(t, tt.idents, observedIdents)
 			}
 			if !tt.wantErr && assert.NoError(t, err) {
 				assert.Equal(t, tt.want, got)
