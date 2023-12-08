@@ -229,9 +229,9 @@ func (con *Converter) visitCallBinary(expr *exprpb.Expr) error {
 		operator = "||"
 	} else if fun == operators.Add && (IsListType(lhsType) && IsListType(rhsType)) {
 		operator = "||"
-	} else if fun == operators.Equals && (isNullLiteral(rhs) || isBoolLiteral(rhs)) {
+	} else if fun == operators.Equals && (isNullLiteral(rhs) || isBoolLiteral(rhs) || isNullTimestamp(rhs)) {
 		operator = "IS"
-	} else if fun == operators.NotEquals && (isNullLiteral(rhs) || isBoolLiteral(rhs)) {
+	} else if fun == operators.NotEquals && (isNullLiteral(rhs) || isBoolLiteral(rhs) || isNullTimestamp(rhs)) {
 		operator = "IS NOT"
 	} else if op, found := standardSQLBinaryOperators[fun]; found {
 		operator = op
@@ -594,6 +594,11 @@ func (con *Converter) visitCallFunc(expr *exprpb.Expr) error {
 		return con.callCasting(fun, target, args)
 	}
 
+	if isNullTimestamp(expr) {
+		con.str.WriteString(ValueToString(nil))
+		return nil
+	}
+
 	for _, ext := range con.extensions {
 		if ext.ImplementsFunction(fun) {
 			return ext.CallFunction(con, fun, target, args)
@@ -639,6 +644,24 @@ func (con *Converter) visitCallFunc(expr *exprpb.Expr) error {
 	}
 	con.str.WriteString(")")
 	return nil
+}
+
+func isNullTimestamp(expr *exprpb.Expr) bool {
+	c := expr.GetCallExpr()
+	if c != nil {
+		fun := c.GetFunction()
+		target := c.GetTarget()
+		args := c.GetArgs()
+		if strings.ToUpper(fun) == "TIMESTAMP" && target == nil && len(args) == 1 {
+			if c, err := GetConstValue(args[0]); err == nil {
+				if i, ok := c.(int64); ok && i == 0 {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func (con *Converter) visitCallIndex(expr *exprpb.Expr) error {
