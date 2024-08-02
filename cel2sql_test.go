@@ -15,10 +15,12 @@ import (
 	"github.com/cockscomb/cel2sql/filters"
 	"github.com/cockscomb/cel2sql/sqltypes"
 	"github.com/cockscomb/cel2sql/test"
+	"github.com/google/cel-go/ext"
 )
 
 func TestConvert(t *testing.T) {
 	env, err := cel.NewEnv(
+		ext.Strings(),
 		cel.EnableMacroCallTracking(),
 		sqltypes.AdditionalMacros,
 		cel.CustomTypeProvider(bq.NewTypeProvider(map[string]bigquery.Schema{
@@ -79,6 +81,11 @@ func TestConvert(t *testing.T) {
 			name: "contains",
 			args: args{source: `name.contains("abc")`},
 			want: "INSTR(`name`, \"abc\") != 0",
+		},
+		{
+			name: "replace",
+			args: args{source: `name.replace("abc", "def")`},
+			want: "REPLACE(`name`, \"abc\", \"def\")",
 		},
 		{
 			name: "&&",
