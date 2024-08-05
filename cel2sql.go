@@ -401,6 +401,31 @@ func (con *Converter) callContains(target *exprpb.Expr, args []*exprpb.Expr) err
 	return nil
 }
 
+func (con *Converter) callReplace(target *exprpb.Expr, args []*exprpb.Expr) error {
+	con.str.WriteString("REPLACE(")
+	if target != nil {
+		nested := isBinaryOrTernaryOperator(target)
+		err := con.visitMaybeNested(target, nested)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(args) != 2 {
+		return fmt.Errorf("string_replace_string_string_int variant of string.replace() is not supported")
+	}
+
+	for _, arg := range args {
+		con.str.WriteString(", ")
+		err := con.Visit(arg)
+		if err != nil {
+			return err
+		}
+	}
+	con.str.WriteString(")")
+	return nil
+}
+
 func (con *Converter) callDuration(target *exprpb.Expr, args []*exprpb.Expr) error {
 	if len(args) != 1 {
 		return fmt.Errorf("arguments must be single")
@@ -568,6 +593,8 @@ func (con *Converter) visitCallFunc(expr *exprpb.Expr) error {
 		return con.visitCallListGet(target, args)
 	case overloads.Contains:
 		return con.callContains(target, args)
+	case "replace":
+		return con.callReplace(target, args)
 	case overloads.TypeConvertDuration:
 		return con.callDuration(target, args)
 	case "interval":
