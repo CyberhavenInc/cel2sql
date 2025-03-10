@@ -299,10 +299,10 @@ func NewWikipediaTableMetadata() *bigquery.TableMetadata {
 			},
 			&bigquery.FieldSchema{
 				Name:        "timestamp",
-				Description: "In Unix time, seconds since epoch.",
+				Description: "last edit to the page",
 				Repeated:    false,
-				Required:    true,
-				Type:        "INTEGER",
+				Required:    false,
+				Type:        "TIMESTAMP",
 				PolicyTags:  nil,
 				Schema:      nil,
 			},

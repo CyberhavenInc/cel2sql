@@ -272,6 +272,11 @@ func TestConvert(t *testing.T) {
 			want: "`created_at` IS NULL AND `created_at` IS NOT NULL",
 		},
 		{
+			name: "has_timestamp",
+			args: args{source: `has(page.timestamp) && !has(page.timestamp)`},
+			want: "`page`.`timestamp` IS NOT NULL AND NOT `page`.`timestamp` IS NOT NULL",
+		},
+		{
 			name: "timestamp",
 			args: args{source: `created_at - duration("60m") <= timestamp(datetime("2021-09-01 18:00:00"), "Asia/Tokyo")`},
 			want: "TIMESTAMP_SUB(`created_at`, INTERVAL 1 HOUR) <= TIMESTAMP(DATETIME(\"2021-09-01 18:00:00\"), \"Asia/Tokyo\")",
