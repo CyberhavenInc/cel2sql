@@ -213,7 +213,7 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 			switch {
 			case cel2sql.IsStringType(argType):
 				con.WriteString(" = ")
-				return con.Visit(args[0])
+				return writeArg(con, function, args[0], con.Visit)
 			case cel2sql.IsListType(argType):
 				con.WriteString(" IN UNNEST(")
 				if err := con.Visit(args[0]); err != nil {
@@ -299,15 +299,46 @@ type regexpOptions struct {
 }
 
 func writeTarget(con *cel2sql.Converter, function string, target *expr.Expr) error {
-	if _, has := ciFuncs[function]; has {
-		con.WriteString("COLLATE(")
+	switch con.GetDialect() {
+	case cel2sql.SpannerSQL:
+		return wrapLower(con, function, target, con.Visit)
+	default:
+		return wrapCI(con, function, target, con.Visit)
 	}
-	if err := con.Visit(target); err != nil {
+}
+
+// writeArg wraps arg in LOWER function only if flavor is Spanner and
+// function is one of Case Insensitive functions. Otherwise, returns next
+func writeArg(con *cel2sql.Converter, function string, arg *expr.Expr, next func(expr *expr.Expr) error) error {
+	switch con.GetDialect() {
+	case cel2sql.SpannerSQL:
+		return wrapLower(con, function, arg, next)
+	default:
+		return next(arg)
+	}
+}
+
+func wrapCI(con *cel2sql.Converter, function string, arg *expr.Expr, next func(expr *expr.Expr) error) error {
+	if _, has := ciFuncs[function]; !has {
+		return next(arg)
+	}
+	con.WriteString("COLLATE(")
+	if err := next(arg); err != nil {
 		return err
 	}
-	if _, has := ciFuncs[function]; has {
-		con.WriteString(", \"und:ci\")")
+	con.WriteString(", \"und:ci\")")
+	return nil
+}
+
+func wrapLower(con *cel2sql.Converter, function string, arg *expr.Expr, next func(expr *expr.Expr) error) error {
+	if _, has := ciFuncs[function]; !has {
+		return next(arg)
 	}
+	con.WriteString("LOWER(")
+	if err := next(arg); err != nil {
+		return err
+	}
+	con.WriteString(")")
 	return nil
 }
 

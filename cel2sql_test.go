@@ -61,6 +61,7 @@ func TestConvert(t *testing.T) {
 		wantCompileErr       bool
 		wantErr              bool
 		idents               []string
+		options              []cel2sql.ConvertOption
 	}{
 		{
 			name: "startsWith",
@@ -80,7 +81,7 @@ func TestConvert(t *testing.T) {
 		{
 			name: "contains",
 			args: args{source: `name.contains("abc")`},
-			want: "INSTR(`name`, \"abc\") != 0",
+			want: "STRPOS(`name`, \"abc\") != 0",
 		},
 		{
 			name: "replace",
@@ -527,6 +528,14 @@ func TestConvert(t *testing.T) {
 			want: `COLLATE("foo", "und:ci") = "bar" AND COLLATE("foo", "und:ci") = "bar" AND COLLATE("bar", "und:ci") IN UNNEST(["foo"]) AND COLLATE("bar", "und:ci") IN UNNEST(["foo"])`,
 		},
 		{
+			name: "filters_exists_equals_ci (spanner option)",
+			args: args{source: `"foo".existsEqualsCI("bar") && "foo".existsEqualsCI(["bar"]) && ["foo"].existsEqualsCI("bar") && ["foo"].existsEqualsCI(["bar"])`},
+			want: `LOWER("foo") = LOWER("bar") AND LOWER("foo") = LOWER("bar") AND LOWER("bar") IN UNNEST(["foo"]) AND LOWER("bar") IN UNNEST(["foo"])`,
+			options: []cel2sql.ConvertOption{
+				cel2sql.WithSQLDialect(cel2sql.SpannerSQL),
+			},
+		},
+		{
 			name: "filters_exists_regexp",
 			args: args{source: `"foo".existsRegexp("bar") && "foo".existsRegexp(["bar"]) && ["foo"].existsRegexp("bar") && ["foo"].existsRegexp(["bar"])`},
 			want: `REGEXP_CONTAINS("foo", "(bar)") AND REGEXP_CONTAINS("foo", "(bar)") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(bar)") AND REGEXP_CONTAINS("\x00" || ARRAY_TO_STRING(["foo"], "\x00") || "\x00", "(bar)")`,
@@ -605,7 +614,11 @@ func TestConvert(t *testing.T) {
 			ext := filters.NewExtension(extOpts...)
 
 			identTracker := identTracker(make(map[string]struct{}))
-			got, err := cel2sql.Convert(ast, cel2sql.WithExtension(ext), cel2sql.WithIdentTracker(identTracker))
+			options := []cel2sql.ConvertOption{
+				cel2sql.WithExtension(ext), cel2sql.WithIdentTracker(identTracker),
+			}
+			options = append(options, tt.options...)
+			got, err := cel2sql.Convert(ast, options...)
 			if len(tt.idents) != 0 {
 				observedIdents := make([]string, 0, len(identTracker))
 				for ident := range identTracker {
@@ -620,7 +633,11 @@ func TestConvert(t *testing.T) {
 			}
 
 			t.Run("WithValueTracker", func(t *testing.T) {
-				got, err := cel2sql.Convert(ast, cel2sql.WithValueTracker(tracker), cel2sql.WithExtension(ext))
+				options := []cel2sql.ConvertOption{
+					cel2sql.WithValueTracker(tracker), cel2sql.WithExtension(ext),
+				}
+				options = append(options, tt.options...)
+				got, err := cel2sql.Convert(ast, options...)
 				for _, v := range tracker.Values {
 					got = strings.ReplaceAll(got, "@"+v.Name, cel2sql.ValueToString(v.Value))
 				}
