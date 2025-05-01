@@ -58,6 +58,12 @@ func WithExtension(ext Extension) ConvertOption {
 	}
 }
 
+func WithSQLDialect(dialect SQLDialect) ConvertOption {
+	return func(con *Converter) {
+		con.sqlDialect = dialect
+	}
+}
+
 type Extension interface {
 	ImplementsFunction(string) bool
 	CallFunction(con *Converter, function string, target *exprpb.Expr, args []*exprpb.Expr) error
@@ -101,6 +107,13 @@ type IdentTracker interface {
 	AddIdentAccess(rootExpr *exprpb.Expr, path []string) []string
 }
 
+type SQLDialect int
+
+const (
+	BigQueySQL SQLDialect = iota
+	SpannerSQL
+)
+
 type Converter struct {
 	str          strings.Builder
 	typeMap      map[int64]*exprpb.Type
@@ -109,6 +122,12 @@ type Converter struct {
 	identTracker IdentTracker
 	extensions   []Extension
 	compIterVars []string
+
+	sqlDialect SQLDialect
+}
+
+func (con *Converter) GetDialect() SQLDialect {
+	return con.sqlDialect
 }
 
 func (con *Converter) WriteString(s string) (int, error) {
@@ -379,7 +398,7 @@ var standardSQLFunctions = map[string]string{
 }
 
 func (con *Converter) callContains(target *exprpb.Expr, args []*exprpb.Expr) error {
-	con.str.WriteString("INSTR(")
+	con.str.WriteString("STRPOS(")
 	if target != nil {
 		nested := isBinaryOrTernaryOperator(target)
 		err := con.visitMaybeNested(target, nested)
