@@ -266,7 +266,7 @@ func (ext *Extension) callFunction(con *cel2sql.Converter, function string, targ
 		return ext.callRegexp(con, target, args, regexpOptions{caseInsensitive: function == ExistsEndsCI, endAnchor: true, regexEscape: true})
 	case ExistsContains, ExistsContainsCI:
 		if cel2sql.IsStringType(tgtType) && cel2sql.IsStringType(argType) {
-			if err := writeSimpleCall("0 != INSTR", con, function, target, args[0]); err != nil {
+			if err := writeSimpleCall("0 != STRPOS", con, function, target, args[0]); err != nil {
 				return err
 			}
 			return nil
