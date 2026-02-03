@@ -595,6 +595,12 @@ func TestConvert(t *testing.T) {
 			want:   "ARRAY(SELECT DISTINCT `p`.`title` FROM `pages` AS p WHERE `p`.`language` = \"english\")",
 			idents: []string{"pages"},
 		},
+		{
+			name:   "filter",
+			args:   args{source: `pages.filter(p, p.language == "english")`},
+			want:   "ARRAY(SELECT p FROM `pages` AS p WHERE `p`.`language` = \"english\")",
+			idents: []string{"pages"},
+		},
 	}
 
 	tracker := bq.NewBigQueryNamedTracker()

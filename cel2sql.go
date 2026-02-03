@@ -814,6 +814,8 @@ func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
 		return con.visitMapComprehension(expr, false)
 	case "mapDistinct":
 		return con.visitMapComprehension(expr, true)
+	case "filter":
+		return con.visitFilterComprehension(expr)
 	default:
 		return fmt.Errorf("comprehension %s is not supported", fn)
 	}
@@ -874,7 +876,20 @@ func (con *Converter) visitMapComprehension(expr *exprpb.Expr, distinct bool) er
 	}
 	con.str.WriteString(")")
 	return nil
+}
 
+func (con *Converter) visitFilterComprehension(expr *exprpb.Expr) error {
+	e := expr.GetComprehensionExpr()
+	con.str.WriteString(fmt.Sprintf("ARRAY(SELECT %s FROM ", e.GetIterVar()))
+	if err := con.Visit(e.GetIterRange()); err != nil {
+		return err
+	}
+	con.str.WriteString(fmt.Sprintf(" AS %s WHERE ", e.GetIterVar()))
+	if err := con.Visit(e.GetLoopStep().GetCallExpr().GetArgs()[0]); err != nil {
+		return err
+	}
+	con.str.WriteString(")")
+	return nil
 }
 
 func GetConstValue(expr *exprpb.Expr) (interface{}, error) {
