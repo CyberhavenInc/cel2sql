@@ -611,6 +611,16 @@ func TestConvert(t *testing.T) {
 			args: args{source: `[1, 2, 3].array_includes(3)`},
 			want: "ARRAY_INCLUDES([1, 2, 3], 3)",
 		},
+		{
+			name: "array_transform",
+			args: args{source: `[1, 2, 3].array_transform(e, e * 2)`},
+			want: "ARRAY_TRANSFORM([1, 2, 3], e -> `e` * 2)",
+		},
+		{
+			name: "array_filter",
+			args: args{source: `[1, 2, 3].array_filter(e, e > 2)`},
+			want: "ARRAY_FILTER([1, 2, 3], e -> `e` > 2)",
+		},
 	}
 
 	tracker := bq.NewBigQueryNamedTracker()

@@ -818,6 +818,10 @@ func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
 		return con.visitFilterComprehension(expr)
 	case "array_includes":
 		return con.visitArrayIncludesComprehension(expr)
+	case "array_filter":
+		return con.visitArrayFilterComprehension(expr)
+	case "array_transform":
+		return con.visitArrayTransformComprehension(expr)
 	default:
 		return fmt.Errorf("comprehension %s is not supported", fn)
 	}
@@ -894,6 +898,25 @@ func (con *Converter) visitMapComprehension(expr *exprpb.Expr, distinct bool) er
 	return nil
 }
 
+func (con *Converter) visitArrayTransformComprehension(expr *exprpb.Expr) error {
+	e := expr.GetComprehensionExpr()
+	con.str.WriteString("ARRAY_TRANSFORM(")
+	if err := con.Visit(e.GetIterRange()); err != nil {
+		return err
+	}
+	con.str.WriteString(fmt.Sprintf(", %s -> ", e.GetIterVar()))
+	switch s := e.GetLoopStep().GetCallExpr(); s.GetFunction() {
+	case operators.Add:
+		if err := con.Visit(s.GetArgs()[1].GetListExpr().GetElements()[0]); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("uknown opereator for array_tansform comprehension")
+	}
+	con.str.WriteString(")")
+	return nil
+}
+
 func (con *Converter) visitFilterComprehension(expr *exprpb.Expr) error {
 	e := expr.GetComprehensionExpr()
 	con.str.WriteString(fmt.Sprintf("ARRAY(SELECT %s FROM ", e.GetIterVar()))
@@ -901,6 +924,20 @@ func (con *Converter) visitFilterComprehension(expr *exprpb.Expr) error {
 		return err
 	}
 	con.str.WriteString(fmt.Sprintf(" AS %s WHERE ", e.GetIterVar()))
+	if err := con.Visit(e.GetLoopStep().GetCallExpr().GetArgs()[0]); err != nil {
+		return err
+	}
+	con.str.WriteString(")")
+	return nil
+}
+
+func (con *Converter) visitArrayFilterComprehension(expr *exprpb.Expr) error {
+	e := expr.GetComprehensionExpr()
+	con.str.WriteString("ARRAY_FILTER(")
+	if err := con.Visit(e.GetIterRange()); err != nil {
+		return err
+	}
+	con.str.WriteString(fmt.Sprintf(", %s -> ", e.GetIterVar()))
 	if err := con.Visit(e.GetLoopStep().GetCallExpr().GetArgs()[0]); err != nil {
 		return err
 	}
