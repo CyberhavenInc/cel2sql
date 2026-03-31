@@ -816,6 +816,8 @@ func (con *Converter) visitComprehension(expr *exprpb.Expr) error {
 		return con.visitMapComprehension(expr, true)
 	case "filter":
 		return con.visitFilterComprehension(expr)
+	case "array_includes":
+		return con.visitArrayIncludesComprehension(expr)
 	default:
 		return fmt.Errorf("comprehension %s is not supported", fn)
 	}
@@ -836,6 +838,20 @@ func (con *Converter) visitExistComprehension(expr *exprpb.Expr) error {
 		return err
 	}
 	con.str.WriteString(fmt.Sprintf(") AS %s WHERE ", e.GetIterVar()))
+	if err := con.Visit(e.GetLoopStep().GetCallExpr().GetArgs()[1]); err != nil {
+		return err
+	}
+	con.str.WriteString(")")
+	return nil
+}
+
+func (con *Converter) visitArrayIncludesComprehension(expr *exprpb.Expr) error {
+	e := expr.GetComprehensionExpr()
+	con.str.WriteString("ARRAY_INCLUDES(")
+	if err := con.Visit(e.GetIterRange()); err != nil {
+		return err
+	}
+	con.str.WriteString(fmt.Sprintf(", %s -> ", e.GetIterVar()))
 	if err := con.Visit(e.GetLoopStep().GetCallExpr().GetArgs()[1]); err != nil {
 		return err
 	}
