@@ -601,6 +601,16 @@ func TestConvert(t *testing.T) {
 			want:   "ARRAY(SELECT p FROM `pages` AS p WHERE `p`.`language` = \"english\")",
 			idents: []string{"pages"},
 		},
+		{
+			name: "array_includes",
+			args: args{source: `[1, 2, 3].array_includes(e, e > 3)`},
+			want: "ARRAY_INCLUDES([1, 2, 3], e -> `e` > 3)",
+		},
+		{
+			name: "array_includes_no_predicate",
+			args: args{source: `[1, 2, 3].array_includes(3)`},
+			want: "ARRAY_INCLUDES([1, 2, 3], 3)",
+		},
 	}
 
 	tracker := bq.NewBigQueryNamedTracker()

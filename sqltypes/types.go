@@ -353,9 +353,14 @@ var SQLTypeDeclarations = cel.Declarations(
 	decls.NewFunction("get",
 		decls.NewParameterizedInstanceOverload("list_get", []*expr.Type{decls.NewListType(typeV), decls.Int}, typeV, []string{"V"}),
 	),
+
+	decls.NewFunction("array_includes",
+		decls.NewInstanceOverload("array_includes", []*expr.Type{decls.NewListType(typeV), typeV}, decls.Bool),
+	),
 )
 
 var AdditionalMacros = cel.Macros(
 	cel.NewReceiverMacro("mapDistinct", 2, parser.MakeMap),
 	cel.NewReceiverMacro("mapDistinct", 3, parser.MakeMap),
+	cel.NewReceiverMacro("array_includes", 2, parser.MakeExists),
 )
