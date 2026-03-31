@@ -362,5 +362,7 @@ var SQLTypeDeclarations = cel.Declarations(
 var AdditionalMacros = cel.Macros(
 	cel.NewReceiverMacro("mapDistinct", 2, parser.MakeMap),
 	cel.NewReceiverMacro("mapDistinct", 3, parser.MakeMap),
+	cel.NewReceiverMacro("array_transform", 2, parser.MakeMap),
+	cel.NewReceiverMacro("array_filter", 2, parser.MakeFilter),
 	cel.NewReceiverMacro("array_includes", 2, parser.MakeExists),
 )
